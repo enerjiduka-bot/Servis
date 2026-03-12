@@ -1,4 +1,4 @@
-[servis-takip.html](https://github.com/user-attachments/files/25932186/servis-takip.html)
+[servis-takip.html](https://github.com/user-attachments/files/25934095/servis-takip.html)
 <!DOCTYPE html>
 <html lang="tr">
 <head>
