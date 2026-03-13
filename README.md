@@ -133,6 +133,7 @@ console.log("Firebase hazir!");
   .profit-positive { color: var(--green); }
   .profit-negative { color: var(--accent2); }
 </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -1638,15 +1639,49 @@ function deleteServis(id) {
   renderServisler();
 }
 
-function waServis(id) {
-  const s = state.servisler.find(x => x.id === id);
+function waServis(id) { waServisHazir(id); }
+
+function waServisTelAl(s) {
+  const m = (state.musteriler||[]).find(function(x){ return x.ad === s.musteri; });
+  return m && m.tel ? m.tel.replace(/\D/g,'').replace(/^0/,'') : null;
+}
+
+function waServisHazir(id) {
+  const s = state.servisler.find(function(x){ return x.id === id; });
   if (!s) return;
-  const isletmeTel = getIsletmeTel();
-  const hedefTel = isletmeTel || s.musteriTel;
-  if (!hedefTel) { alert('Telefon numarası bulunamadi. Ayarlar sayfasindan isletme telefonunu girin.'); return; }
-  const mesaj = 'Sayin ' + s.musteri + ', "' + s.alet + '" cihaziniz hakkinda bilgilendirme: Durum: ' + durumLabel(s.durum) + '. ' + (s.ucret ? 'Tamir ucreti: TL'+s.ucret+'.' : '') + ' Bilgi icin bizi arayabilirsiniz.';
-  const tel = hedefTel.replace(/\D/g, '').replace(/^0/, '');
-  window.open('https://wa.me/90' + tel + '?text=' + encodeURIComponent(mesaj));
+  const tel = waServisTelAl(s);
+  const parcalar = s.parcalar && s.parcalar.length
+    ? s.parcalar.map(function(p){ return p.ad + ' x' + p.adet; }).join(', ')
+    : '';
+  const mesaj = 'Sayın ' + s.musteri + ',\n\n'
+    + s.alet + (s.marka ? ' (' + s.marka + ')' : '') + ' cihazınızın tamiri tamamlandı, teslim almak için gelebilirsiniz.\n'
+    + (parcalar ? '\nKullanılan parçalar: ' + parcalar + '\n' : '')
+    + '\nTamir Ücreti: ₺' + parseFloat(s.ucret||0).toFixed(0)
+    + '\n\nDüka Enerji 🔧';
+  if (tel) {
+    window.open('https://wa.me/90' + tel + '?text=' + encodeURIComponent(mesaj));
+  } else {
+    if (confirm('Telefon kayıtlı değil.\n\nMesajı kopyalamak ister misiniz?')) {
+      navigator.clipboard && navigator.clipboard.writeText(mesaj);
+      alert('Kopyalandı!');
+    }
+  }
+}
+
+function waServisAlinsin(id) {
+  const s = state.servisler.find(function(x){ return x.id === id; });
+  if (!s) return;
+  const tel = waServisTelAl(s);
+  const mesaj = 'Sayın ' + s.musteri + ',\n\n'
+    + s.alet + (s.marka ? ' (' + s.marka + ')' : '') + ' cihazınız servisimizde incelendi.\n'
+    + (s.ariza ? 'Arıza: ' + s.ariza + '\n' : '')
+    + '\nDetaylar için lütfen bizimle iletişime geçiniz.'
+    + '\n\nDüka Enerji 🔧';
+  if (tel) {
+    window.open('https://wa.me/90' + tel + '?text=' + encodeURIComponent(mesaj));
+  } else {
+    alert('Müşteri telefonu kayıtlı değil.');
+  }
 }
 
 // --- CARİ ---
@@ -2274,31 +2309,59 @@ function faturaCikart(id) {
   openModal('fatura-modal');
 }
 
-function faturayiWAGonder() {
-  const s = state.servisler.find(x => x.id === aktivFaturaServisId);
-  if (!s || !s.musteriTel) { alert('Bu servis için telefon numarası yok'); return; }
-  const tarih = new Date(s.tarih).toLocaleDateString('tr-TR');
-  const parcalar = s.parcalar && s.parcalar.length
-    ? s.parcalar.map(p => p.ad+' x'+p.adet+' = ₺'+(p.adet*p.birimMaliyet).toFixed(0)).join(', ')
-    : '—';
-  const metin =
-    '⚙️ *EL ALETİ TAMİR SERVİSİ*\n' +
-    '━━━━━━━━━━━━━━\n' +
-    `👤 Müşteri: ${s.musteri}\n` +
-    `📅 Tarih: ${tarih}\n` +
-    `🔧 Alet: ${s.alet}${s.marka?' / '+s.marka:''}\n` +
-    `🔩 Arıza: ${s.ariza||'—'}\n` +
-    '━━━━━━━━━━━━━━\n' +
-    `📦 Parçalar: ${parcalar}\n` +
-    `💰 Tamir Ücreti: ₺${parseFloat(s.ucret||0).toFixed(0)}\n` +
-    `📋 Durum: ${durumLabel(s.durum)}\n` +
-    '━━━━━━━━━━━━━━\n' +
-    'Teşekkürler 🙏';
-  const tel = s.musteriTel.replace(/\D/g,'').replace(/^0/,'');
-  window.open('https://wa.me/90'+tel+'?text='+encodeURIComponent(metin));
+function fisResimCek(callback) {
+  const el = document.getElementById('fatura-content');
+  html2canvas(el, {
+    backgroundColor: '#ffffff',
+    scale: 2,
+    useCORS: true,
+    allowTaint: true
+  }).then(function(canvas) {
+    callback(canvas);
+  }).catch(function(err) {
+    alert('Resim oluşturulamadı: ' + err);
+  });
 }
 
-// --- GRAFİK ---
+function fisResimIndir() {
+  fisResimCek(function(canvas) {
+    const link = document.createElement('a');
+    link.download = 'fis-' + Date.now() + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+}
+
+function fisWAPaylas() {
+  const s = state.servisler.find(function(x){ return x.id === aktivFaturaServisId; });
+  fisResimCek(function(canvas) {
+    canvas.toBlob(function(blob) {
+      // Web Share API ile paylaş (mobilde çalışır)
+      if (navigator.share && navigator.canShare) {
+        const file = new File([blob], 'fis.png', { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          navigator.share({
+            files: [file],
+            title: 'Servis Fişi',
+            text: s ? 'Sayın ' + s.musteri + ', servis fişiniz ekte.' : 'Servis fişi'
+          }).catch(function(e) { if (e.name !== 'AbortError') alert('Paylaşım hatası: ' + e); });
+          return;
+        }
+      }
+      // Mobil değilse veya share API yoksa indir
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'fis.png';
+      link.click();
+      URL.revokeObjectURL(url);
+      alert('Fiş indirildi! WhatsApp\'ta müşteriye gönderebilirsiniz.');
+    }, 'image/png');
+  });
+}
+
+function faturayiWAGonder() { fisWAPaylas(); }
+
 function renderGrafik() {
   const aylar = {};
   if (state.satislar) {
@@ -3433,8 +3496,9 @@ setInterval(renderDriveBar, 2000); renderDriveBar();
     <div class="modal-title">🧾 FİŞ / FATURA <button class="close-btn" onclick="closeModal('fatura-modal')">✕</button></div>
     <div id="fatura-content" style="background:#fff;color:#111;border-radius:8px;padding:18px;font-family:monospace;font-size:13px;line-height:1.8"></div>
     <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="btn btn-whatsapp" style="flex:1;justify-content:center" onclick="faturayiWAGonder()">📲 WhatsApp'a Gönder</button>
-      <button class="btn btn-ghost btn-sm" onclick="closeModal('fatura-modal')">Kapat</button>
+      <button class="btn btn-whatsapp" style="flex:1;justify-content:center" onclick="fisWAPaylas()">📲 WA'ya Gönder</button>
+      <button class="btn btn-ghost btn-sm" onclick="fisResimIndir()">💾 Kaydet</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('fatura-modal')">✕</button>
     </div>
   </div>
 </div>
