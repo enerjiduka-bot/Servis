@@ -1,4 +1,4 @@
-[servis-takip.html](https://github.com/user-attachments/files/26064489/servis-takip.html)
+[servis-takip.html](https://github.com/user-attachments/files/26065080/servis-takip.html)
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -1111,17 +1111,30 @@ let state = {
 };
 
 function saveState() {
+  // Her zaman localStorage'a kaydet
   try { localStorage.setItem('servis_app', JSON.stringify(state)); } catch(e) {}
-  // Firebase'e kaydet (debounce)
+  // Firebase'e kaydet - debounce 800ms
   clearTimeout(window._fbSaveTimer);
   window._fbSaveTimer = setTimeout(function() {
-    if (window._firebaseReady) {
-      firebaseSave();
-    } else {
-      // Firebase hazır değilse 3 saniye sonra tekrar dene
-      setTimeout(function() { firebaseSave(); }, 3000);
-    }
-  }, 500);
+    firebaseSaveRetry(0);
+  }, 800);
+}
+
+function firebaseSaveRetry(deneme) {
+  if (deneme > 5) {
+    console.error('Firebase 5 denemede kaydedemedik!');
+    const el = document.getElementById('firebase-durum');
+    if (el) { el.textContent = '🔴'; el.title = 'Bağlantı yok'; }
+    return;
+  }
+  if (!window._firebaseReady) {
+    // Firebase henüz hazır değil, bekle
+    setTimeout(function() { firebaseSaveRetry(deneme + 1); }, 1000);
+    return;
+  }
+  firebaseSave().catch(function() {
+    setTimeout(function() { firebaseSaveRetry(deneme + 1); }, 2000);
+  });
 }
 
 // Sayfa kapanırken hemen kaydet
@@ -1173,7 +1186,10 @@ async function firebaseLoad() {
       // Firebase'deki veri gerçekten dolu mu kontrol et
       const fbDolu = (fbVeri.servisler && fbVeri.servisler.length > 0) ||
                      (fbVeri.satislar && fbVeri.satislar.length > 0) ||
-                     (fbVeri.musteriler && fbVeri.musteriler.length > 0);
+                     (fbVeri.musteriler && fbVeri.musteriler.length > 0) ||
+                     (fbVeri.giderler && fbVeri.giderler.length > 0) ||
+                     (fbVeri.cari && fbVeri.cari.length > 0) ||
+                     (fbVeri.stok && fbVeri.stok.length > 0);
       if (fbDolu) {
         state = fbVeri;
         try { localStorage.setItem('servis_app', JSON.stringify(state)); } catch(e) {}
@@ -3510,6 +3526,8 @@ kasalariBaslat();
 // Firebase hazır olunca veriyi çek
 function initFirebase() {
   if (!window._firebaseReady) {
+    const el = document.getElementById('firebase-durum');
+    if (el) { el.textContent = '🟡'; el.title = 'Bağlanıyor...'; }
     setTimeout(initFirebase, 300);
     return;
   }
