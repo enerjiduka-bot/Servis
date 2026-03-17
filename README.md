@@ -1,4 +1,4 @@
-[servis-takip.html](https://github.com/user-attachments/files/26065080/servis-takip.html)
+[servis-takip.html](https://github.com/user-attachments/files/26065771/servis-takip.html)
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -516,6 +516,7 @@ console.log("Firebase hazir!");
     <div style="font-family:'Bebas Neue';font-size:28px;letter-spacing:2px;">🔩 SERVİS TAKİP</div>
     <div style="font-size:12px;color:var(--muted);" id="dashboard-date"></div>
   </div>
+  <div id="yedek-uyari" style="display:none"></div>
   <div id="drive-bar" style="margin-bottom:12px"></div>
   <div id="bekleyen-uyari" style="margin-bottom:12px"></div>
   <div class="stats-grid" id="stats-grid"></div>
@@ -1442,6 +1443,7 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
 function renderDashboard() {
   const now = new Date();
   renderDriveBar();
+  yedekKontrol();
   document.getElementById('dashboard-date').textContent = now.toLocaleDateString('tr-TR', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
 
   // --- BEKLEYEN UYARI ---
@@ -3524,6 +3526,49 @@ function deleteSatis(id) {
 loadState();
 kasalariBaslat();
 // Firebase hazır olunca veriyi çek
+// --- YEDEK SİSTEMİ ---
+function yedegiIndir() {
+  const tarih = new Date().toLocaleDateString('tr-TR').replace(/\./g, '-');
+  const veri = JSON.stringify(state, null, 2);
+  const blob = new Blob([veri], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'duka-yedek-' + tarih + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  // Son yedek tarihini kaydet
+  localStorage.setItem('son_yedek', new Date().toDateString());
+}
+
+function yedekKontrol() {
+  const sonYedek = localStorage.getItem('son_yedek');
+  const bugun = new Date().toDateString();
+  if (sonYedek === bugun) return;
+  const veriVar = state.servisler.length > 0 || state.satislar.length > 0 ||
+                  state.giderler.length > 0 || state.musteriler.length > 0;
+  if (!veriVar) return;
+  const uyari = document.getElementById('yedek-uyari');
+  if (!uyari) return;
+  uyari.style.display = 'block';
+  var div = document.createElement('div');
+  div.style.cssText = 'background:#3b82f622;border:1px solid #3b82f666;border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
+  div.innerHTML = '<div><div style="font-weight:700;color:#60a5fa;margin-bottom:2px">💾 Günlük Yedek</div><div style="font-size:12px;color:var(--muted)">Verilerinizi yedeklemek ister misiniz?</div></div><div id="yedek-btn-grup" style="display:flex;gap:6px"></div>';
+  uyari.innerHTML = '';
+  uyari.appendChild(div);
+  var indirBtn = document.createElement('button');
+  indirBtn.className = 'btn btn-primary btn-sm';
+  indirBtn.textContent = '⬇️ İndir';
+  indirBtn.addEventListener('click', function() { yedegiIndir(); uyari.innerHTML = ''; uyari.style.display='none'; });
+  var atlaBtn = document.createElement('button');
+  atlaBtn.className = 'btn btn-ghost btn-sm';
+  atlaBtn.textContent = 'Atla';
+  atlaBtn.addEventListener('click', function() { localStorage.setItem('son_yedek', new Date().toDateString()); uyari.innerHTML = ''; uyari.style.display='none'; });
+  var grup = div.querySelector('#yedek-btn-grup');
+  grup.appendChild(indirBtn);
+  grup.appendChild(atlaBtn);
+}
+
 function initFirebase() {
   if (!window._firebaseReady) {
     const el = document.getElementById('firebase-durum');
