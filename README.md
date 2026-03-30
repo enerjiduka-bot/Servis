@@ -1,5 +1,4 @@
-[servis-takip2.html](https://github.com/user-attachments/files/26272359/servis-takip2.html)
-<!DOCTYPE html>
+
 <html lang="tr">
 
 <head>
