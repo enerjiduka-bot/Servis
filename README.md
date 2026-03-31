@@ -1,4 +1,5 @@
-
+[servis-takip4.html](https://github.com/user-attachments/files/26383466/servis-takip4.html)
+<!DOCTYPE html>
 <html lang="tr">
 
 <head>
@@ -783,6 +784,24 @@
                     <span id="ay-uyari-span"
                         style="position:absolute;cursor:pointer;inset:0;background:var(--border);border-radius:24px;transition:.3s"></span>
                 </label>
+            </div>
+        </div>
+        <div class="card" style="margin-top:12px">
+            <div class="card-header">
+                <h2>Veri Yönetimi & Yedekleme</h2>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                <button class="btn btn-ghost" onclick="yedekIndir()" style="width:100%">📥 Tüm Verileri Yedekle
+                    (Cihazınıza İndir)</button>
+                <div style="border:1px dashed var(--border);padding:14px;border-radius:8px;text-align:center;">
+                    <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Elinizdeki JSON yedeğini sisteme
+                        yükleyin</div>
+                    <input type="file" id="yedek-dosya" accept=".json" style="display:none"
+                        onchange="yedekYukle(event)">
+                    <button class="btn btn-primary" onclick="document.getElementById('yedek-dosya').click()"
+                        style="width:100%">🔗 Yedeği Yükle (JSON)</button>
+                    <div id="yedek-yukle-durum" style="font-size:12px;margin-top:8px"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -3795,6 +3814,67 @@
                 firebaseGercekZamanli();
             });
         }
+
+        function yedekIndir() {
+            var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+            var downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "servis_yedek_" + new Date().toISOString().split('T')[0] + ".json");
+            document.body.appendChild(downloadAnchorNode); // Firefox için gerekli
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function yedekYukle(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    var icerik = e.target.result;
+                    var yeniVeri = JSON.parse(icerik);
+
+                    if (yeniVeri && typeof yeniVeri === 'object') {
+                        if (confirm('DİKKAT! Yedeği yüklemek mevcut tüm verilerinizin üzerine yazılacaktır. Emin misiniz?')) {
+                            // Olası eski yedeklerden eksik kalabilecek arrayleri boş liste ile tamamlayalım ki filtre/döngü hatası (undefined) oluşturmasın.
+                            state.servisler = yeniVeri.servisler || [];
+                            state.cari = yeniVeri.cari || [];
+                            state.stok = yeniVeri.stok || [];
+                            state.musteriler = yeniVeri.musteriler || [];
+                            state.satislar = yeniVeri.satislar || [];
+                            state.giderler = yeniVeri.giderler || [];
+                            state.kasa = yeniVeri.kasa || [];
+                            state.kasalar = yeniVeri.kasalar || [];
+                            state.ayarlar = yeniVeri.ayarlar || { isletmeAd: '', isletmeTel: '', adres: '', uyariAktif: true };
+                            state.servisFilter = 'hepsi';
+                            state.cariFilter = 'hepsi';
+
+                            saveState(); // Firebase ve LocalStorage'a kaydet
+                            renderDashboard();
+
+                            var durumEl = document.getElementById('yedek-yukle-durum');
+                            if (durumEl) {
+                                durumEl.textContent = '✅ Yedek başarıyla yüklendi!';
+                                durumEl.style.color = 'var(--green)';
+                                setTimeout(function () { durumEl.textContent = ''; }, 4000);
+                            } else {
+                                alert('Yedek başarıyla yüklendi!');
+                                window.location.reload();
+                            }
+                        }
+                    } else {
+                        throw new Error('Geçersiz dosya formatı');
+                    }
+                } catch (error) {
+                    console.error('Yedek yükleme hatası:', error);
+                    alert('Yedek yüklenirken bir hata oluştu. Dosyanın geçerli bir JSON olduğundan emin olun.');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Input'u resetle aynı dosyayı tekrar yükleyebilmek için
+        }
+
         initFirebase();
 
         renderDashboard();
