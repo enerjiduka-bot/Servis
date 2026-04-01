@@ -1,4 +1,4 @@
-[servis-takip4.html](https://github.com/user-attachments/files/26403410/servis-takip4.html)
+[servis-takip4.html](https://github.com/user-attachments/files/26403587/servis-takip4.html)
 <!DOCTYPE html>
 <html lang="tr">
 
@@ -891,7 +891,10 @@
             </div>
             <div class="form-group">
                 <label>Tedarikçi</label>
-                <input type="text" id="al-tedarikci" placeholder="Firma / kişi adı">
+                <input type="text" id="al-tedarikci" placeholder="Firma / kişi adı" oninput="musteriOneri('al')">
+                <div id="al-tedarikci-oneri"
+                    style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:6px;margin-top:4px;max-height:120px;overflow-y:auto">
+                </div>
             </div>
             <div id="al-kalemler-list"></div>
             <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:12px;">
@@ -1780,8 +1783,8 @@
         }
 
         function musteriOneri(prefix) {
-            const inputId = prefix === 's' ? 's-musteri-ad' : (prefix === 'sat' ? 'sat-musteri' : 'c-isim');
-            const oneriId = prefix === 's' ? 's-musteri-oneri' : (prefix === 'sat' ? 'sat-musteri-oneri' : 'c-musteri-oneri');
+            const inputId = prefix === 's' ? 's-musteri-ad' : (prefix === 'sat' ? 'sat-musteri' : (prefix === 'al' ? 'al-tedarikci' : 'c-isim'));
+            const oneriId = prefix === 's' ? 's-musteri-oneri' : (prefix === 'sat' ? 'sat-musteri-oneri' : (prefix === 'al' ? 'al-tedarikci-oneri' : 'c-musteri-oneri'));
             const q = document.getElementById(inputId).value.toLowerCase();
             const oneriEl = document.getElementById(oneriId);
             if (!q || q.length < 1) { oneriEl.style.display = 'none'; return; }
@@ -1804,6 +1807,9 @@
             } else if (prefix === 'sat') {
                 document.getElementById('sat-musteri').value = m.ad;
                 document.getElementById('sat-musteri-oneri').style.display = 'none';
+            } else if (prefix === 'al') {
+                document.getElementById('al-tedarikci').value = m.ad;
+                document.getElementById('al-tedarikci-oneri').style.display = 'none';
             } else {
                 document.getElementById('c-isim').value = m.ad;
                 document.getElementById('c-musteri-oneri').style.display = 'none';
