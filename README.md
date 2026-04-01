@@ -1,4 +1,4 @@
-[servis-takip4.html](https://github.com/user-attachments/files/26383466/servis-takip4.html)
+[servis-takip4.html](https://github.com/user-attachments/files/26403410/servis-takip4.html)
 <!DOCTYPE html>
 <html lang="tr">
 
@@ -3126,30 +3126,38 @@
         }
 
         // Genel ödeme seç: kasaya mı veresiyeye mi
-        function odemeSecModal(baslik, tutar, musteriAd, aciklama) {
+        function odemeSecModal(baslik, tutar, musteriAd, aciklama, islemTuru = 'satis', extraNot = '') {
             kasalariBaslat();
             // Basit: önce kasa seç, veresiye seçeneği de sunulacak
-            const secenek = confirm(baslik + '\n\n"Tamam" = Kasaya ekle\n"İptal" = Veresiye / Cariye yaz\n\nMüşteri: ' + musteriAd);
+            const islemMetni = islemTuru === 'satis' ? 'Kasaya ekle (Tahsilat)' : 'Kasadan öde (Nakit Çıkış)';
+            const sahisMetni = islemTuru === 'satis' ? 'Müşteri: ' : 'Tedarikçi: ';
+            const secenek = confirm(baslik + '\n\n"Tamam" = ' + islemMetni + '\n"İptal" = Veresiye / Cariye yaz\n\n' + sahisMetni + musteriAd);
             if (secenek) {
-                kasaSecModal(baslik + ' hangi kasaya?', function (kasaId) {
-                    kasaHareketEkle(kasaId, 'giris', musteriAd + ' - ' + aciklama, tutar, '');
+                kasaSecModal(baslik + (islemTuru === 'satis' ? ' hangi kasaya?' : ' hangi kasadan?'), function (kasaId) {
+                    const kasaTur = islemTuru === 'satis' ? 'giris' : 'cikis';
+                    kasaHareketEkle(kasaId, kasaTur, musteriAd + ' - ' + aciklama, tutar, extraNot);
                     saveState();
                     renderKasa();
                 });
             } else {
                 // Cariye yaz
                 if (!state.cari) state.cari = [];
+                const cariTur = islemTuru === 'satis' ? 'alacak' : 'borc';
                 state.cari.push({
                     id: Date.now(),
                     isim: musteriAd,
-                    tur: 'alacak',
+                    tur: cariTur,
                     tutar: tutar,
                     aciklama: aciklama + ' (veresiye)',
                     tarih: new Date().toISOString()
                 });
                 saveState();
                 renderCari();
-                alert(musteriAd + ' adına ₺' + tutar.toFixed(0) + ' cari alacak açıldı!');
+                if (islemTuru === 'satis') {
+                    alert(musteriAd + ' adına ₺' + tutar.toFixed(0) + ' cari alacak açıldı!');
+                } else {
+                    alert(musteriAd + ' adına ₺' + tutar.toFixed(0) + ' cari borç açıldı (Ödenecek)!');
+                }
             }
         }
 
@@ -3642,7 +3650,7 @@
             renderSatis();
             // Ödeme seçeneği sun
             setTimeout(function () {
-                odemeSecModal('Satış ₺' + toplam.toFixed(0), toplam, _satMusteri, kayit.kalemler.map(function (k) { return k.ad; }).join(', '));
+                odemeSecModal('Satış ₺' + toplam.toFixed(0), toplam, _satMusteri, kayit.kalemler.map(function (k) { return k.ad; }).join(', '), 'satis', kayit.not || '');
             }, 300);
         }
 
@@ -3672,17 +3680,14 @@
             state.satislar.push(kayit);
             saveState();
             alKalemler = [];
+            const _alTedarikci = kayit.tedarikci;
             document.getElementById('al-tedarikci').value = '';
             document.getElementById('al-not').value = '';
             closeModal('alis-modal');
             renderSatis();
-            // Hangi kasadan çıkış sorusu
+            // Hangi kasadan çıkış sorusu veya veresiye seçeneği
             setTimeout(function () {
-                kasaSecModal('Alış tutarı ₺' + toplam.toFixed(0) + ' hangi kasadan ödensin?', function (kasaId) {
-                    kasaHareketEkle(kasaId, 'cikis', (kayit.tedarikci || 'Belirsiz') + ' - ' + kayit.kalemler.map(function (k) { return k.ad; }).join(', '), toplam, kayit.not || '');
-                    saveState();
-                    renderKasa();
-                });
+                odemeSecModal('Alış ₺' + toplam.toFixed(0), toplam, _alTedarikci, kayit.kalemler.map(function (k) { return k.ad; }).join(', '), 'alis', kayit.not || '');
             }, 300);
         }
 
