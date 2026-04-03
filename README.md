@@ -1,4 +1,4 @@
-[servis-takip4.html](https://github.com/user-attachments/files/26403587/servis-takip4.html)
+[servis-takip4.html](https://github.com/user-attachments/files/26461876/servis-takip4.html)
 <!DOCTYPE html>
 <html lang="tr">
 
@@ -1338,6 +1338,21 @@
             cariFilter: 'hepsi'
         };
 
+        let _dataYuklendiVeHazir = false;
+
+        function mergeState(yeniVeri) {
+            if (!yeniVeri) return;
+            state.servisler = yeniVeri.servisler || state.servisler || [];
+            state.cari = yeniVeri.cari || state.cari || [];
+            state.stok = yeniVeri.stok || state.stok || [];
+            state.musteriler = yeniVeri.musteriler || state.musteriler || [];
+            state.satislar = yeniVeri.satislar || state.satislar || [];
+            state.giderler = yeniVeri.giderler || state.giderler || [];
+            state.kasa = yeniVeri.kasa || state.kasa || [];
+            state.kasalar = yeniVeri.kasalar || state.kasalar || [];
+            state.ayarlar = yeniVeri.ayarlar || state.ayarlar || { isletmeAd: '', isletmeTel: '', adres: '', uyariAktif: true };
+        }
+
         function saveState() {
             // Her zaman localStorage'a kaydet
             try { localStorage.setItem('servis_app', JSON.stringify(state)); } catch (e) { }
@@ -1386,6 +1401,10 @@
                 console.warn('Firebase hazir degil, kayit atlanıyor');
                 return;
             }
+            if (!_dataYuklendiVeHazir) {
+                console.warn('Veri henuz yuklenmedi, bos veri kaydetmeyi onlemek icin atlandi');
+                return;
+            }
             try {
                 const { doc, setDoc } = window._firestoreFns;
                 // state'i temizle - undefined değerleri kaldır
@@ -1419,7 +1438,8 @@
                         (fbVeri.cari && fbVeri.cari.length > 0) ||
                         (fbVeri.stok && fbVeri.stok.length > 0);
                     if (fbDolu) {
-                        state = fbVeri;
+                        mergeState(fbVeri);
+                        _dataYuklendiVeHazir = true;
                         try { localStorage.setItem('servis_app', JSON.stringify(state)); } catch (e) { }
                         console.log("Firebase den yuklen di");
                         return true;
@@ -1428,12 +1448,14 @@
                         console.log("Firebase bos array, localStorage kontrol ediliyor...");
                         const lsVeri = localStorageYukle();
                         if (lsVeri) {
-                            state = lsVeri;
+                            mergeState(lsVeri);
+                            _dataYuklendiVeHazir = true;
                             console.log('localStorage veri yuklendi, Firebase aktariliyor...');
                             setTimeout(function () { firebaseSave(); }, 1000);
                             return true;
                         }
                         // Her ikisi de boş - Firebase'e kaydet
+                        _dataYuklendiVeHazir = true;
                         setTimeout(function () { firebaseSave(); }, 1000);
                         return false;
                     }
@@ -1442,10 +1464,12 @@
                     console.log("Firebase dokumani yok, localStorage kontrol ediliyor...");
                     const lsVeri = localStorageYukle();
                     if (lsVeri) {
-                        state = lsVeri;
+                        mergeState(lsVeri);
+                        _dataYuklendiVeHazir = true;
                         setTimeout(function () { firebaseSave(); }, 1000);
                         return true;
                     }
+                    _dataYuklendiVeHazir = true;
                     setTimeout(function () { firebaseSave(); }, 1000);
                     return false;
                 }
@@ -1453,7 +1477,8 @@
                 console.error('Firebase yükleme hatası:', e);
                 // Firebase hata verdi - localStorage dan yukle
                 const lsVeri = localStorageYukle();
-                if (lsVeri) { state = lsVeri; return true; }
+                if (lsVeri) { mergeState(lsVeri); _dataYuklendiVeHazir = true; return true; }
+                else { _dataYuklendiVeHazir = true; }
             }
             return false;
         }
@@ -1465,7 +1490,10 @@
                 const veri = JSON.parse(ls);
                 const dolu = (veri.servisler && veri.servisler.length > 0) ||
                     (veri.satislar && veri.satislar.length > 0) ||
-                    (veri.musteriler && veri.musteriler.length > 0);
+                    (veri.musteriler && veri.musteriler.length > 0) ||
+                    (veri.giderler && veri.giderler.length > 0) ||
+                    (veri.cari && veri.cari.length > 0) ||
+                    (veri.stok && veri.stok.length > 0);
                 return dolu ? veri : null;
             } catch (e) { return null; }
         }
@@ -1479,7 +1507,7 @@
                 if (snap.exists()) {
                     const yeniVeri = snap.data();
                     if (JSON.stringify(yeniVeri) !== JSON.stringify(state)) {
-                        state = yeniVeri;
+                        mergeState(yeniVeri);
                         try { localStorage.setItem('servis_app', JSON.stringify(state)); } catch (e) { }
                         renderDashboard();
                         console.log('Firebase guncellendi:', new Date().toLocaleTimeString());
@@ -1490,7 +1518,19 @@
         function loadState() {
             try {
                 const d = localStorage.getItem('servis_app');
-                if (d) state = JSON.parse(d);
+                if (d) {
+                    const veri = JSON.parse(d);
+                    const dolu = (veri.servisler && veri.servisler.length > 0) ||
+                        (veri.satislar && veri.satislar.length > 0) ||
+                        (veri.musteriler && veri.musteriler.length > 0) ||
+                        (veri.giderler && veri.giderler.length > 0) ||
+                        (veri.cari && veri.cari.length > 0) ||
+                        (veri.stok && veri.stok.length > 0);
+                    mergeState(veri);
+                    if (dolu) {
+                        _dataYuklendiVeHazir = true;
+                    }
+                }
             } catch (e) { }
         }
 
